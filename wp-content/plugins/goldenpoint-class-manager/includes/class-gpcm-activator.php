@@ -51,10 +51,6 @@ class GPCM_Activator
             class_type_id BIGINT UNSIGNED NOT NULL,
             monitor_user_id BIGINT UNSIGNED NULL,
             venue_id BIGINT UNSIGNED NOT NULL,
-            court VARCHAR(80) NULL,
-            day_of_week TINYINT UNSIGNED NOT NULL,
-            start_time TIME NOT NULL,
-            end_time TIME NOT NULL,
             max_students TINYINT UNSIGNED NOT NULL,
             active TINYINT(1) NOT NULL DEFAULT 1,
             created_at DATETIME NOT NULL,
@@ -64,6 +60,22 @@ class GPCM_Activator
             KEY class_type_id (class_type_id),
             KEY monitor_user_id (monitor_user_id),
             KEY venue_id (venue_id)
+        ) {$charsetCollate};";
+
+        $sql[] = "CREATE TABLE {$prefix}group_schedules (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            group_id BIGINT UNSIGNED NOT NULL,
+            day_of_week TINYINT UNSIGNED NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            court VARCHAR(80) NULL,
+            monitor_user_id BIGINT UNSIGNED NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            KEY group_id (group_id),
+            KEY day_of_week (day_of_week),
+            KEY monitor_user_id (monitor_user_id)
         ) {$charsetCollate};";
 
         $sql[] = "CREATE TABLE {$prefix}group_students (
@@ -76,7 +88,7 @@ class GPCM_Activator
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             PRIMARY KEY (id),
-            UNIQUE KEY uniq_active_student_group (group_id, student_user_id, status),
+            UNIQUE KEY uniq_group_student_status (group_id, student_user_id, status),
             KEY student_user_id (student_user_id)
         ) {$charsetCollate};";
 
@@ -188,12 +200,18 @@ class GPCM_Activator
 
         $venues = ['PadelPrix Oalma León', 'Casa de Asturias'];
         foreach ($venues as $venue) {
-            $wpdb->insert("{$prefix}venues", ['name' => $venue, 'created_at' => $now, 'updated_at' => $now]);
+            $exists = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM {$prefix}venues WHERE name = %s", $venue));
+            if (!$exists) {
+                $wpdb->insert("{$prefix}venues", ['name' => $venue, 'created_at' => $now, 'updated_at' => $now]);
+            }
         }
 
         $levels = ['Inicial', 'Inicial +', 'Inicial Medio', 'Inicial Medio +', 'Medio', 'Medio +', 'Avanzado', 'Competición'];
         foreach ($levels as $i => $level) {
-            $wpdb->insert("{$prefix}levels", ['name' => $level, 'sort_order' => $i + 1, 'created_at' => $now, 'updated_at' => $now]);
+            $exists = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM {$prefix}levels WHERE name = %s", $level));
+            if (!$exists) {
+                $wpdb->insert("{$prefix}levels", ['name' => $level, 'sort_order' => $i + 1, 'created_at' => $now, 'updated_at' => $now]);
+            }
         }
 
         $types = [
@@ -203,13 +221,16 @@ class GPCM_Activator
         ];
 
         foreach ($types as $type) {
-            $wpdb->insert("{$prefix}class_types", [
-                'name' => $type['name'],
-                'capacity_min' => $type['capacity_min'],
-                'capacity_max' => $type['capacity_max'],
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
+            $exists = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM {$prefix}class_types WHERE name = %s", $type['name']));
+            if (!$exists) {
+                $wpdb->insert("{$prefix}class_types", [
+                    'name' => $type['name'],
+                    'capacity_min' => $type['capacity_min'],
+                    'capacity_max' => $type['capacity_max'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
         }
     }
 }
